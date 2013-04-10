@@ -1,0 +1,278 @@
+###############################################################################
+#
+# Comment:
+#
+# This makefile is never called directly by the user nor is it included by
+# other makefiles. Instead, it is used in recursive calls to make by both the
+# top-level makefile and the local src directory makefile.
+#
+# Hence, we can expect variables to be preset from the outside:
+#
+#  TARGETDIR : The compilation target directory. These are either all src
+#  directories when called by the top-level directory or just the one directory
+#  itself when called locally.
+#
+#
+
+
+###############################################################################
+#
+# general setup:
+#
+
+HIDE := @
+DEPS := yes
+
+include makefiles/config.mkf
+include makefiles/targets_snetc.mkf
+
+SUBPROJECT       := snetc
+SUBPROJECT_DIRS  := $(snetc)
+
+SOURCE_DIRS      := $(TARGETDIR)
+
+TARGETDIRS_DEVEL := $(foreach target,$(TARGETDIR),$(addprefix $(target)/,$($(target))))
+TARGETDIRS_PROD  := $(patsubst %.o,%.prod.o,$(TARGETDIRS_DEVEL))
+TARGETDIRS_SRC   := $(patsubst %.o,%.c,$(TARGETDIRS_DEVEL))
+
+
+LIB  := -lltdl #FIXME checking and whatsoever in configure.ac?
+INCS := $(INCS) -I. $(patsubst %,-I%,$(SUBPROJECT_DIRS)) 
+
+
+XML_DIR     = xml
+XML_COMMONS = $(wildcard $(XML_DIR)/common_*.xsl)
+
+GENERATED_INCLUDE_FILES = $(patsubst %.xsl,%,$(foreach dir,$(SOURCE_DIRS),$(wildcard $(dir)/*.h.xsl))) \
+                          $(patsubst %.y,%.tab.h,$(foreach dir,$(SOURCE_DIRS),$(wildcard $(dir)/*.y)))
+
+GENERATED_SOURCE_FILES = $(patsubst %.xsl,%,$(foreach dir,$(SOURCE_DIRS),$(wildcard $(dir)/*.c.xsl))) \
+                         $(patsubst %.y,%.tab.c,$(foreach dir,$(SOURCE_DIRS),$(wildcard $(dir)/*.y))) \
+                         $(patsubst %.l,%.lex.c,$(foreach dir,$(SOURCE_DIRS),$(wildcard $(dir)/*.l))) \
+
+GENERATED_FILES = $(GENERATED_INCLUDE_FILES) $(GENERATED_SOURCE_FILES)
+
+DEPENDENCY_FILES = $(patsubst %.o,%.d,$(TARGETDIRS_DEVEL))
+
+DEPENDENCIES = $(foreach file,$(DEPENDENCY_FILES),$(dir $(file)).$(notdir $(file)))
+
+
+###############################################################################
+#
+# Dummy rules
+#
+
+.PHONY: all
+
+.PRECIOUS: %.c %.h %.o %.prod.o .%.d %.c %.lex.c %.tab.c %.tab.h
+
+
+
+###############################################################################
+#
+# Start rule
+#
+
+all: $(TARGETS)
+	@ if [ -f .done ] ; \
+          then $(RM) .done ; \
+          else $(ECHO) "S-Net $(SUBPROJECT) up to date !"; \
+          fi
+
+
+###############################################################################
+#
+# Build rules
+#
+
+snetc: global/build.o 
+	@$(ECHO) ""
+	@$(ECHO) "Linking snetc (developer version)"
+	$(HIDE) $(CC)  -o $@ $(TARGETDIRS_DEVEL) $< \
+                $(LIB) $(LIBS) $(LIBS_LEX) $(RPATH) 
+	@$(RM) .make_track
+	@$(TOUCH) .done
+
+snetc.prod: global/build_prod.o
+	@$(ECHO) ""
+	@$(ECHO) "Linking snetc.prod (product version)"
+	$(HIDE) $(CCPROD) -o $@ $(TARGETDIRS_PROD) $< \
+                $(LIB) $(LIBS) $(LIBS_LEX)  $(RPATH)
+	@$(RM) .make_track
+	@$(TOUCH) .done
+
+snetc.efence: global/build.o
+	@$(ECHO) ""
+	@$(ECHO) "Linking snetc.efence (efence version)"
+	$(HIDE) $(CC) -o $@ $(TARGETDIRS_DEVEL) $< \
+                $(LIB) $(LIBS) $(LIBS_LEX) $(EFLIBS) $(RPATH)
+	@$(RM) .make_track
+	@$(TOUCH) .done
+
+
+###############################################################################
+#
+# Creating the revision data file
+#
+# We make snetc depend on the revision data file and in turn the revision data
+# file depend on all target object files. By this dependency chain we achieve
+# that only if one of the object files needs to be remade, we also remake the
+# revision data file and, thereupon, relink snetc.
+#
+
+global/build.c: $(TARGETDIRS_DEVEL) 
+	@$(ECHO) ""
+	@$(ECHO) "Creating revision data file:  $@"
+	@$(ECHO) "char build_date[] = \"`date`\";"  >  $@
+	@$(ECHO) "char build_user[] = \"$(USER)\";" >> $@
+	@$(ECHO) "char build_host[] = \"`hostname`\";" >> $@
+	@$(ECHO) "char build_os[]   = \"$(OS)\";"   >> $@
+	#@$(ECHO) "char build_rev[]  = \"$(REVISION)\";"  >> $@
+	@$(ECHO) "char build_rev[]  = \"REVISION\";"  >> $@
+
+global/build_prod.c: $(TARGETDIRS_PROD)
+	@$(ECHO) ""
+	@$(ECHO) "Creating revision data file:  $@"
+	@$(ECHO) "char build_date[] = \"`date`\";"  >  $@
+	@$(ECHO) "char build_user[] = \"$(USER)\";" >> $@
+	@$(ECHO) "char build_host[] = \"`hostname`\";" >> $@
+	@$(ECHO) "char build_os[]   = \"$(OS)\";"   >> $@
+	#@$(ECHO) "char build_rev[]  = \"$(REVISION)\";"  >> $@
+	@$(ECHO) "char build_rev[]  = \"REVISION\";"  >> $@
+
+
+
+###############################################################################
+#
+# Rules for making subdirectories
+#
+
+makesubdir.devel: $(TARGETDIRS_DEVEL)
+	@$(ECHO) ""
+
+makesubdir.prod: $(TARGETDIRS_PROD)
+	@$(ECHO) ""
+
+
+
+###############################################################################
+#
+# Pattern rules for compilation
+#
+
+%.o: %.c 
+	@if [ ! -f .make_track -o "$(dir $*)" != "`cat .make_track`" ] ; \
+         then $(ECHO) "$(dir $*)" > .make_track; \
+              $(ECHO) ""; \
+              $(ECHO) "Compiling files in directory $(PREFIX_LOCAL)$(dir $@)" ; \
+         fi
+	@$(ECHO) "  Compiling developer code:  $(notdir $<)"
+	$(HIDE) $(CC) $(CCFLAGS) $(CFLAGS) $(YYFLAGS) $(INCS)  \
+	 -o $@ -c $<
+
+%.prod.o: %.c 
+	@if [ ! -f .make_track -o "$(dir $*)" != "`cat .make_track`" ] ; \
+         then $(ECHO) "$(dir $*)" > .make_track; \
+              $(ECHO) ""; \
+              $(ECHO) "Compiling files in directory $(PREFIX_LOCAL)$(dir $@)" ; \
+         fi
+	@$(ECHO) "  Compiling product code:  $(notdir $<)"
+	$(HIDE) $(CCPROD) $(CCPROD_FLAGS) $(CPROD_FLAGS) $(YYFLAGS) $(INCS) \
+	  -o $@ -c $<
+
+
+###############################################################################
+#
+# Pattern rules for source code generation
+#
+
+%.h: %.h.xsl $(XML_DIR)/ast.xml $(XML_COMMONS) 
+	@if [ ! -f .make_track -o "$(dir $*)" != "`cat .make_track`" ] ; \
+         then $(ECHO) "$(dir $*)" > .make_track; \
+              $(ECHO) ""; \
+              $(ECHO) "Generating header files in directory $(PREFIX_LOCAL)$(dir $@)" ; \
+         fi
+	@$(ECHO) "  Generating header file from XML specification:  $(notdir $@)"
+	$(HIDE)$(XSLTENGINE) $< $(XML_DIR)/ast.xml >$@
+	@printf "\n" >> $@
+
+%.c: %.c.xsl $(XML_DIR)/ast.xml $(XML_COMMONS) 
+	@if [ ! -f .make_track -o "$(dir $*)" != "`cat .make_track`" ] ; \
+         then $(ECHO) "$(dir $*)" > .make_track; \
+              $(ECHO) ""; \
+              $(ECHO) "Generating source files in directory $(PREFIX_LOCAL)$(dir $@)" ; \
+         fi
+	@$(ECHO) "  Generating source code from XML specification:  $(notdir $@)"
+	$(HIDE)$(XSLTENGINE) $< $(XML_DIR)/ast.xml >$@
+	@printf "\n" >> $@
+
+
+%.lex.c: %.l 
+	@if [ ! -f .make_track -o "$(dir $*)" != "`cat .make_track`" ] ; \
+         then $(ECHO) "$(dir $*)" > .make_track; \
+              $(ECHO) ""; \
+              $(ECHO) "Generating source files in directory $(PREFIX_LOCAL)$(dir $@)" ; \
+         fi
+	@$(ECHO) "  Generating source code from LEX specification:  $(notdir $@)"
+	$(HIDE)$(LEX) $<
+	$(HIDE)mv lex.yy.c $@
+
+%.tab.c: %.y 
+	@if [ ! -f .make_track -o "$(dir $*)" != "`cat .make_track`" ] ; \
+         then $(ECHO) "$(dir $*)" > .make_track; \
+              $(ECHO) ""; \
+              $(ECHO) "Generating source files in directory $(PREFIX_LOCAL)$(dir $@)" ; \
+         fi
+	@$(ECHO) "  Generating source code from YACC specification:  $(notdir $@)"
+	$(HIDE)$(YACC) $<
+	$(HIDE)mv y.tab.c $@
+	$(HIDE)$(RM) y.tab.h
+	$(HIDE)mv y.output $(dir $@)
+
+%.tab.h: %.y 
+	@if [ ! -f .make_track -o "$(dir $*)" != "`cat .make_track`" ] ; \
+         then $(ECHO) "$(dir $*)" > .make_track; \
+              $(ECHO) ""; \
+              $(ECHO) "Generating header files in directory $(PREFIX_LOCAL)$(dir $@)" ; \
+         fi
+	@$(ECHO) "  Generating header file from YACC specification:  $(notdir $@)"
+	$(HIDE)$(YACC) $<
+	$(HIDE)mv y.tab.h $@
+	$(HIDE)$(RM) y.tab.c 
+	$(HIDE)mv y.output $(dir $@)
+
+
+#######################################################################################
+#
+# Pattern rules for dependency tracking mechanism:
+#
+
+.%.d: %.c $(GENERATED_FILES) 
+	@if [ ! -f .make_track -o "$(dir $*)" != "`cat .make_track`" ] ; \
+        then $(ECHO) "$(dir $*)" > .make_track; \
+             $(ECHO) ""; \
+             $(ECHO) "Checking dependencies in directory $(PREFIX_LOCAL)$(dir $@)" ; \
+        fi
+	@$(ECHO) "  Checking dependencies of source file: $(notdir $<)"
+	$(HIDE) if $(CC) $(CCDEPS_FLAGS) $(CFLAGS) $(INCS)  $<  > $@d ; \
+	 then sed 's#\($(notdir $*)\)\.o[ :]*#$*.o $@: makefiles/config.mkf #'  <$@d >$@; \
+	      $(RM) $@d ; \
+	 else $(RM) $@d ; \
+	      exit 1 ;  \
+	 fi
+
+
+
+###############################################################################
+#
+# Includes for dependency tracking mechanism
+#
+
+ifeq ($(DEPS),yes)
+  ifneq ($(DEPENDENCIES),)
+    -include $(sort $(DEPENDENCIES))
+  endif
+endif
+
+
+

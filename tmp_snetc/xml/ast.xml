@@ -1,0 +1,2710 @@
+<!--
+ *******************************************************************************
+ *
+ * $Id: ast.xml 3378 2012-03-11 11:36:57Z vnn $
+ *
+ * Author: Kari Keinanen, VTT Technical Research Centre of Finland
+ *
+ * Date: 05.01.2007
+ *
+ * Description:
+ *
+ * AST definition of S-NET compiler internal data structure.
+ *
+ *******************************************************************************
+-->
+<?xml-stylesheet href="ast2html.xsl" type="text/xsl" name="HTML" media="screen"?>
+<definition version="0.9" >
+  <attributetypes>
+    <type name="String" ctype="char *" init="NULL" copy="function" />
+    <type name="NodePtr" ctype="node *" init="NULL" copy="literal" />
+    <type name="Integer" ctype="int" init="0" copy="literal" />
+    <type name="Bool" ctype="bool" init="FALSE" copy="literal" />
+    <type name="FiltType" ctype="filttype" init="FILT_empty" copy="literal" />
+    <type name="LblQual" ctype="lblqual" init="LQUA_none" copy="literal" />
+    <type name="NTypeSigPtr" ctype="struct TYP_NTYPESIG *" init="NULL" copy="function" />
+    <type name="MetadataType" ctype="mdtype" init="MD_all" copy="literal" />
+   </attributetypes>
+  <phases>
+    <!-- id is the short id of the traversal
+         name is a descriptive name
+         default gives the default traversal mode
+           user  a user defined function
+           sons  TravSons
+           none  TravNone
+           error TravError
+         include the include file needed for the traversal
+    -->
+    <general>
+      <!-- Traversal using default="user" -->
+      <traversal id="FREE" name="Free Tree" default="user" include="free_node.h" />
+      <traversal id="COPY" name="Copy Tree" default="user" include="copy_node.h" />
+      <traversal id="CHK" name="Check the Tree" default="user" ifdef="show_malloc" include="check.h" />
+      <traversal id="CHKTST" name="Check the TreeTest" default="user" ifdef="show_malloc" include="checktst.h" />
+      <traversal id="CHKM" name="Check the memspace" default="user" postfun="CHKMpostfun" ifdef="show_malloc" include="check_node.h" />
+      <traversal id="PRT" name="Print Syntax Tree" default="user" include="print.h" >
+        <topfunction name="PRTdoPrint" />
+      </traversal>
+      <traversal id="MERRCODE" name="Propagating user-defined error codes" default="user" include="merrcode.h" >
+        <topfunction name="MERRCODEdoPropagate" />
+      </traversal>
+      <!-- Traversal using default="sons" -->
+      <!-- Parsing -->
+      <traversal id="SPLOC" name=" " default="sons" include="sploc.h" >
+        <topfunction name="SPdoLocate" >
+        </topfunction>
+        <travuser>
+          <node name="At" />
+          <node name="BoxRef" />
+          <node name="Choice" />
+          <node name="Filt" />
+          <node name="NetRefs" />
+          <node name="Serial" />
+          <node name="Split" />
+          <node name="Star" />
+          <node name="Feedback" />
+          <node name="Sync" />
+          <node name="Trans" />
+        </travuser>
+      </traversal>
+      <!-- Metadata processing -->
+      <traversal id="MDPREPROC" name="Preprocessing metadata" default="sons" include="mpreproc.h">
+        <topfunction name="MDdoPreproc" />
+        <travuser>
+          <node name="MetadataBoxDef" />
+          <node name="MetadataDefaultDef" />
+          <node name="MetadataNetDef" />
+          <node name="MetadataKeyList" />
+          <node name="MetadataList" />
+        </travuser>
+      </traversal>
+      <traversal id="MDREDIST" name="Moving metadata to inner scopes" default="sons" include="mredist.h">
+        <topfunction name="MDdoDistribute" />
+        <travuser>
+          <node name="Module" />
+          <node name="Defs" />
+          <node name="NetDef" />
+          <node name="NetBody" />
+          <node name="MetadataBoxDef" />
+          <node name="MetadataDefs" />
+          <node name="MetadataNetDef" />
+        </travuser>
+      </traversal>
+      <traversal id="MDUNPACK" name="Unpacking metadata to nets and boxes" default="sons" include="munpack.h">
+        <topfunction name="MDdoUnpack" />
+        <travuser>
+          <node name="Module" />
+          <node name="Defs" />
+          <node name="NetDef" />
+          <node name="BoxDef" />
+          <node name="NetBody" />
+          <node name="MetadataBoxDef" />
+          <node name="MetadataDefs" />
+          <node name="MetadataNetDef" />
+        </travuser>
+      </traversal>
+      <traversal id="MDPROGDEF" name="Propagating default metadata values" default="sons" include="mprogdef.h">
+        <topfunction name="MDdoPropagate" />
+        <travuser>
+          <node name="Module" />
+          <node name="Defs" />
+          <node name="NetDef" />
+          <node name="BoxDef" />
+          <node name="NetBody" />
+          <node name="MetadataDefs" />
+          <node name="MetadataDefaultDef" />
+        </travuser>
+      </traversal>
+      <traversal id="MDREMDUP" name="Removing duplicate metadata keys" default="sons" include="mremdup.h">
+        <topfunction name="MDdoRemove" />
+        <travuser>
+          <node name="NetDef" />
+          <node name="BoxDef" />
+          <node name="MetadataKeyList" />
+        </travuser>
+      </traversal>
+      <traversal id="MDCOLLECT" name="Collecting global information about metadata" default="sons" include="mcollect.h">
+        <topfunction name="MDdoCollect" />
+        <travuser>
+          <node name="Module" />
+          <node name="MetadataKeyList" />
+        </travuser>
+      </traversal>
+      <!-- Preprocessing -->
+      <traversal id="PREPDCR" name="Pre processing dead code removal" default="sons" include="dcr.h" >
+        <topfunction name="PREPdoRemove" >
+          <description>Removes any definitions that are not referred by any other entity from the tree</description>
+        </topfunction>
+        <travuser>
+          <node name="BoxDef" />
+          <node name="BoxRef" />
+          <node name="Defs" />
+          <node name="NetDef" />
+          <node name="NetRefs" />
+          <node name="TypeDef" />
+          <node name="TypeRef" />
+          <node name="TypeSigDef" />
+          <node name="TypeSigRef" />
+        </travuser>
+      </traversal>
+     <traversal id="PREPTCHECK" name="Pre processing type check" default="sons" include="tcheck.h" >
+        <topfunction name="PREPdoTypeCheck" />
+        <travuser>
+          <node name="TagExpr" />
+          <node name="Filt" />
+          <node name="GuardActions" />
+          <node name="GuardPatterns" />
+          <node name="OutputFields" />
+        </travuser>
+      </traversal>
+      <traversal id="PREPBOXEX" name="Pre processing box language code extract" default="sons" include="boxex.h" >
+        <topfunction name="PREPdoExtract" />
+        <travuser>
+          <node name="BoxBody" />
+          <node name="Module" />
+        </travuser>
+      </traversal>
+      <traversal id="PREPTRES" name="Pre processing type resolution" default="sons" include="tres.h">
+        <topfunction name="PREPdoTypeRes" />
+        <travuser>
+          <node name="Defs" />
+          <node name="TypeDef" />
+          <node name="TypeRef" />
+          <node name="Types" />
+          <node name="TypeSigDef" />
+          <node name="TypeSigRef" />
+        </travuser>
+      </traversal>
+      <traversal id="PREPMOD" name="Pre processing external module loading" default="sons" include="mod.h" >
+        <topfunction name="PREPdoLoad" />
+        <travuser>
+          <node name="BTags" />
+          <node name="Fields" />
+          <node name="Module" />
+          <node name="NetDef" />
+          <node name="RecEntries" />
+          <node name="STags" />
+        </travuser>
+      </traversal>
+      <!-- Flattening -->
+      <traversal id="FLAT" name="Flattening topology expressions" default="sons" include="flat.h" >
+        <topfunction name="FLATdoFlat" />
+        <travuser>
+          <node name="At" />
+          <node name="NetRefs" />
+          <node name="BoxRef" />
+          <node name="Choice" />
+          <node name="BranchList" />
+          <node name="Filt" />
+          <node name="NetBody" />
+          <node name="NetDef" />
+          <node name="Serial" />
+          <node name="Split" />
+          <node name="Star" />
+          <node name="Feedback" />
+          <node name="Sync" />
+        </travuser>
+      </traversal>
+      <!-- Type inference -->
+      <traversal id="TGS" name="Typing - getting sig" default="none" include="getsig.h" >
+        <travuser>
+          <node name="TypeMap" />
+          <node name="BoxSign" />
+          <node name="Filt" />
+          <node name="TypeMap" />
+        </travuser>
+        <travsons>
+          <node name="TypeSigns" />
+        </travsons>
+      </traversal>
+      <traversal id="TGV" name="Typing - getting vrectype" default="none" include="getvrec.h" >
+        <travuser>
+          <node name="Types" />
+          <node name="BoxTypes" />
+          <node name="GuardPatterns" />
+          <node name="RecOuts" />
+        </travuser>
+        <travsons>
+          <node name="GuardActions" />
+        </travsons>
+      </traversal>
+      <traversal id="TGN" name="Typing - getting nrectype" default="none" include="getnrec.h" >
+        <travuser>
+          <node name="RecEntries" />
+          <node name="OutputFields" />
+          <node name="FieldRef" />
+          <node name="STagRef" />
+          <node name="BTagRef" />
+        </travuser>
+        <travsons>
+          <node name="RecType" />
+          <node name="GuardPatterns" />
+          <node name="Range" />
+        </travsons>
+      </traversal>
+      <traversal id="TSIP" name="Typing - sig inference - prims" default="sons" include="siginfprim.h" >
+        <topfunction name="TSIPdoSigInf" />
+        <travuser>
+          <node name="BoxDef" />
+          <node name="NetDef" />
+          <node name="NetBody" />
+          <node name="BoxRef" />
+          <node name="Sync" />
+          <node name="Filt" />
+        </travuser>
+        <travnone>
+          <node name="NetRefs" />
+          <node name="Serial" />
+          <node name="Choice" />
+          <node name="Star" />
+          <node name="Feedback" />
+          <node name="Split" />
+          <node name="Fields" />
+          <node name="STags" />
+          <node name="BTags" />
+        </travnone>
+      </traversal>
+      <traversal id="TRI" name="Typing - route inference" default="sons" include="routeinf.h" >
+        <topfunction name="TRIdoRouteInf" />
+        <travuser>
+          <node name="NetRefs" />
+          <node name="NetBody" />
+          <node name="NetDef" />
+          <node name="Serial" />
+          <node name="Choice" />
+          <node name="BranchList" />
+          <node name="Star" />
+          <node name="Feedback" />
+          <node name="Split" />
+          <node name="Range" />
+          <node name="TypeMap" />
+          <node name="BoxRef" />
+          <node name="NetRef" />
+          <node name="TypeSigRef" />
+        </travuser>
+        <travnone>
+          <node name="BoxDef" />
+          <node name="BoxRef" />
+          <node name="Filt" />
+          <node name="Sync" />
+          <node name="Fields" />
+          <node name="STags" />
+          <node name="BTags" />
+        </travnone>
+      </traversal>
+      <traversal id="TC" name="Typing - type check" default="sons" include="typechk.h" >
+        <topfunction name="TCdoTypeCheck" />
+        <travuser>
+          <node name="NetDef" />
+          <node name="BoxRef" />
+          <node name="Filt" />
+          <node name="Sync" />
+          <node name="NetRefs" />
+          <node name="Serial" />
+          <node name="Choice" />
+          <node name="BranchList" />
+          <node name="Star" />
+          <node name="Split" />
+          <node name="Range" />
+        </travuser>
+        <travnone>
+          <node name="Defs" />
+          <node name="Fields" />
+          <node name="STags" />
+          <node name="BTags" />
+          <node name="Feedback" />
+        </travnone>
+      </traversal>
+      <!-- Post processing -->
+      <traversal id="PPTCLN" name="Post processing type cleaning" default="sons" include="ptypcln.h">
+        <topfunction name="PPdoTypeClean" />
+        <travuser>
+          <node name="BoxDef" />
+          <node name="NetDef" />
+          <node name="NetBody" />
+          <node name="RecEntries" />
+        </travuser>
+      </traversal>
+      <traversal id="PPTRAN" name="Post processing package translation" default="sons" include="ptran.h" >
+        <topfunction name="PPdoTranslation" />
+        <travuser>
+          <node name="BTagRef" />
+          <node name="BTags" />
+          <node name="Defs" />
+          <node name="FieldRef" />
+          <node name="Fields" />
+          <node name="NetDef" />
+          <node name="RecEntries" />
+          <node name="RecType" />
+          <node name="STagRef" />
+          <node name="STags" />
+          <node name="Types" />
+          <node name="TypeMap" />
+          <node name="TypeSigns" />
+        </travuser>
+      </traversal>
+      <traversal id="PPREN" name="Post processing nested network renaming" default="sons" include="netren.h" >
+       <topfunction name="PPdoRename" />
+       <travuser>
+          <node name="BoxDef" />
+          <node name="NetDef" />
+        </travuser>
+      </traversal>
+      <traversal id="PPFLAT" name="Post processing nested network flattening" default="sons" include="netflat.h" >
+       <topfunction name="PPdoFlat" />
+       <travuser>
+          <node name="Defs" />
+          <node name="NetBody" />
+           <node name="NetDef" />
+        </travuser>
+      </traversal>
+    <traversal id="PPLOC" name="Post processing " default="sons" include="ploc.h" >
+       <topfunction name="PPdoLocate" />
+       <travuser>
+          <node name="At" />
+          <node name="BranchList" />
+          <node name="BoxRef" />
+          <node name="Choice" />
+          <node name="Defs" />
+          <node name="Filt" />
+          <node name="NetBody" />
+          <node name="NetDef" />
+          <node name="NetRefs" />
+          <node name="Serial" />
+          <node name="Split" />
+          <node name="Star" />
+          <node name="Feedback" />
+          <node name="Sync" />
+          <node name="Trans" />
+        </travuser>
+      </traversal>
+      <!-- Code generation -->
+      <traversal id="CODE" name="Code generation" default="sons" include="codegen.h" >
+       <topfunction name="CODEdoCode" />
+       <travuser>
+          <node name="BoxDef" />
+          <node name="BoxRef" />
+          <node name="BoxSign" />
+          <node name="BTags" />
+          <node name="Choice" />
+          <node name="Defs" />
+          <node name="Fields" />
+          <node name="Filt" />
+          <node name="Module" />
+          <node name="NetDef" />
+          <node name="NetRefs" />
+          <node name="Serial" />
+          <node name="Split" />
+          <node name="STags" />
+          <node name="Star" />
+          <node name="Feedback" />
+          <node name="Sync" />
+          <node name="Trans" />
+          <node name="LanguageInterfaces" />
+        </travuser>
+      </traversal>
+      
+      <traversal id="NETID" name="Creates unique IDs for dynamic networks" default="sons" include="netid.h" >
+        <topfunction name="NETIDdoLookup" >
+        </topfunction>
+        <travuser>
+          <node name="Star" />
+          <node name="Split" />
+        </travuser>
+      </traversal>
+
+      <traversal id="CCHOICE" default="sons" include="cchoice.h" >
+        <topfunction name="CCHOICEdoCode" >
+        </topfunction>
+        <travuser>
+          <node name="BranchList" />
+          <node name="BoxRef" />
+          <node name="Choice" />
+          <node name="NetRefs" />
+          <node name="RecType" />
+          <node name="Types" />
+        </travuser>
+      </traversal>
+      <traversal id="CEXPR" default="sons" include="cexpr.h" >
+        <topfunction name="CEXPRdoCode" >
+        </topfunction>
+        <travuser>
+          <node name="BoxSign" />
+          <node name="BTagRef" />
+          <node name="STagRef" />
+          <node name="TagExpr" />
+          <node name="GuardPatterns" />
+          <node name="GuardActions" />
+          <node name="TypeMap" />
+        </travuser>
+      </traversal>
+      <traversal id="CFEEDBACK" default="sons" include="cfeedback.h" >
+        <topfunction name="CFEEDBACKdoCode" >
+        </topfunction>
+        <travuser>
+          <node name="BoxRef" />
+          <node name="BoxSign" />
+          <node name="NetRefs" />
+          <node name="RecType" />
+          <node name="TypeMap" />
+        </travuser>
+      </traversal>
+      <traversal id="CFILT" default="sons" include="cfilt.h" >
+        <topfunction name="CFILTdoCode" >
+        </topfunction>
+        <travuser>
+          <node name="BTags" />
+          <node name="BTagInit" />
+          <node name="BTagRef" />
+          <node name="Fields" />
+          <node name="FieldInit" />
+          <node name="FieldRef" />
+          <node name="Filt" />
+          <node name="RecType" />
+          <node name="STags" />
+          <node name="STagInit" />
+          <node name="STagRef" />
+          <node name="GuardActions" />
+          <node name="TypeMap" />
+	  <node name="RecOuts" />
+	  <node name="OutputFields" />
+        </travuser>
+      </traversal>
+      <traversal id="CSERIAL" default="sons" include="cserial.h" >
+        <topfunction name="CSERIALdoCode" >
+        </topfunction>
+        <travuser>
+	  <node name="BoxRef" />
+          <node name="NetRefs" />
+          <node name="Serial" />
+        </travuser>
+      </traversal>
+      <traversal id="CSHIELD" default="sons" include="cshield.h" >
+        <topfunction name="CSHIELDdoCode" >
+        </topfunction>
+        <travuser>
+          <node name="BoxSign" />
+          <node name="BTagRef" />
+          <node name="FieldRef" />
+          <node name="NetDef" />
+          <node name="RecType" />
+          <node name="STagRef" />
+          <node name="Trans" />
+          <node name="TypeMap" />
+        </travuser>
+      </traversal>
+      <traversal id="CSPLIT" default="sons" include="csplit.h" >
+        <topfunction name="CSPLITdoCode" >
+        </topfunction>
+        <travuser>
+          <node name="BoxRef" />
+          <node name="BoxSign" />
+          <node name="BTagRef" />
+          <node name="NetRefs" />
+          <node name="Range" />
+          <node name="Split" />
+          <node name="STagRef" />
+          <node name="TypeMap" />
+        </travuser>
+      </traversal>
+      <traversal id="CSTAR" default="sons" include="cstar.h" >
+        <topfunction name="CSTARdoCode" >
+        </topfunction>
+        <travuser>
+          <node name="BoxRef" />
+          <node name="BoxSign" />
+          <node name="NetRefs" />
+          <node name="RecType" />
+          <node name="TypeMap" />
+        </travuser>
+      </traversal>
+      <traversal id="CSYNC" default="sons" include="csync.h" >
+        <topfunction name="CSYNCdoCode" >
+        </topfunction>
+        <travuser>
+          <node name="RecType" />
+          <node name="Sync" />
+          <node name="TypeMap" />
+        </travuser>
+      </traversal>
+      <traversal id="CTEXT" default="sons" include="ctext.h" >
+        <topfunction name="CTEXTdoCode" >
+        </topfunction>
+        <travuser>
+          <node name="BoxDef" />
+          <node name="BoxSign" />
+          <node name="BoxTypes" />
+          <node name="BTagRef" />
+          <node name="BTags" />
+          <node name="FieldRef" />
+          <node name="Fields" />
+          <node name="NetDef" />
+          <node name="STagRef" />
+          <node name="STags" />
+          <node name="TypeMap" />
+        </travuser>
+      </traversal>
+      <traversal id="CTRANS" default="sons" include="ctrans.h" >
+        <topfunction name="CTRANSdoCode" >
+        </topfunction>
+        <travuser>
+          <node name="BoxSign" />
+          <node name="BoxTypes" />
+          <node name="BTagRef" />
+          <node name="FieldRef" />
+          <node name="STagRef" />
+          <node name="Trans" />
+          <node name="TypeMap" />
+        </travuser>
+      </traversal>
+      <traversal id="CWRAP" default="sons" include="cwrap.h" >
+        <topfunction name="CWRAPdoCode" >
+        </topfunction>
+        <travuser>
+          <node name="BoxRef" />
+          <node name="BoxSign" />
+          <node name="BoxTypes" />
+          <node name="BTagRef" />
+          <node name="FieldRef" />
+          <node name="STagRef" />
+        </travuser>
+      </traversal>
+      <traversal id="CGENWRAP" name="Generating box wrappers" default="sons" include="cgenwrap.h" >
+        <topfunction name="CGENWRAPdoCode" >
+        </topfunction>
+        <travuser>
+          <node name="BoxDef" />
+          <node name="BoxSign" />
+          <node name="RecEntries" />
+          <node name="BoxTypes" />
+          <node name="BoxSign" />
+        </travuser>
+      </traversal>
+      <traversal id="CVAR" default="sons" include="cvar.h" >
+        <topfunction name="CVARdoCode" >
+        </topfunction>
+        <travuser>
+	  <node name="BoxTypes" />
+          <node name="BTagRef" />
+          <node name="FieldRef" />
+          <node name="STagRef" />
+          <node name="Sync" />
+          <node name="RecType" />
+        </travuser>
+      </traversal>
+      <traversal id="CC" default="sons" include="invokecc.h" >
+        <topfunction name="CCdoCompile" >
+        </topfunction>
+        <travuser>
+          <node name="LanguageInterfaces" />
+        </travuser>
+      </traversal>
+    </general>
+  </phases>
+  <nodesets>
+    <nodeset name="Def">
+      <target>
+        <node name="BoxDef" />
+        <node name="NetDef" />
+        <node name="TypeDef" />
+        <node name="TypeSigDef" />
+        <node name="MetadataDefs" />
+      </target>
+    </nodeset>
+    <nodeset name="Type">
+      <target>
+        <node name="TypeRef" />
+        <node name="RecType" />
+      </target>
+    </nodeset>
+    <nodeset name="TypeSig">
+      <target>
+        <node name="TypeMap" />
+        <node name="TypeSigRef" />
+      </target>
+    </nodeset>
+    <nodeset name="Expr">
+      <target>
+        <node name="At" />
+        <node name="BoxRef" />
+        <node name="NetRefs" />
+        <node name="Sync" />
+        <node name="Filt" />
+        <node name="Trans" />
+        <node name="Serial" />
+        <node name="Star" />
+        <node name="Feedback" />
+        <node name="Choice" />
+        <node name="Split" />
+      </target>
+    </nodeset>
+    <nodeset name="MetadataDef">
+      <target>
+        <node name="MetadataBoxDef" />
+        <node name="MetadataDefaultDef" />
+        <node name="MetadataNetDef" />
+      </target>
+    </nodeset>
+    <!-- Arbitrary metadata element -->
+    <nodeset name="Metadata">
+      <target>
+        <node name="MetadataBoxDef" />
+        <node name="MetadataDefaultDef" />
+        <node name="MetadataNetDef" />
+        <node name="MetadataKeyList" />
+      </target>
+    </nodeset>
+  </nodesets>
+  <syntaxtree>
+    <node name="Module">
+      <sons>
+        <son name="Defs">
+          <targets>
+            <target mandatory="no">
+              <node name="Defs" />
+              <phases>
+                <all />
+              </phases>
+            </target>
+          </targets>
+        </son>
+        <son name="Fields">
+          <targets>
+            <target mandatory="no">
+              <node name="Fields" />
+              <phases>
+                <all />
+              </phases>
+            </target>
+          </targets>
+        </son>
+        <son name="STags">
+          <targets>
+            <target mandatory="no">
+              <node name="STags" />
+              <phases>
+                <all />
+              </phases>
+            </target>
+          </targets>
+        </son>
+        <son name="BTags">
+          <targets>
+            <target mandatory="no">
+              <node name="BTags" />
+              <phases>
+                <all />
+              </phases>
+            </target>
+          </targets>
+        </son>
+        <son name="Interfaces">
+          <!-- Used to hold data about each language interface (One node per interface) -->
+          <targets>
+            <target mandatory="no">
+              <node name="LanguageInterfaces" />
+              <phases>
+                <all />
+              </phases>
+            </target>
+          </targets>
+        </son>
+      </sons>
+      <attributes/>
+     <flags>
+        <flag name="HasObservers" default="FALSE"/>
+      </flags>
+    </node>
+    <node name="Defs">
+      <sons>
+        <son name="Def">
+          <targets>
+            <target mandatory="yes">
+              <set name="Def" />
+              <phases>
+                <all />
+              </phases>
+            </target>
+          </targets>
+        </son>
+        <son name="Next">
+          <targets>
+            <target mandatory="no">
+              <node name="Defs" />
+              <phases>
+                <all />
+              </phases>
+            </target>
+          </targets>
+        </son>
+      </sons>
+      <attributes />
+    </node>
+    <node name="Types">
+      <sons>
+        <son name="Type">
+          <targets>
+            <target mandatory="yes">
+              <set name="Type" />
+              <phases>
+                <all />
+              </phases>
+            </target>
+          </targets>
+        </son>
+        <son name="Next">
+          <targets>
+            <target mandatory="no">
+              <node name="Types" />
+              <phases>
+                <all />
+              </phases>
+            </target>
+          </targets>
+        </son>
+      </sons>
+      <attributes />
+    </node>
+    <node name="BoxRef">
+      <sons />
+      <attributes>
+        <attribute name="Box">
+          <type name="NodePtr">
+            <targets>
+              <target mandatory="yes">
+                <any />
+                <phases>
+                  <all />
+                </phases>
+              </target>
+            </targets>
+          </type>
+        </attribute>
+        <attribute name="Location" default="-1">
+          <type name="Integer">
+            <targets>
+              <target mandatory="no">
+                <any />
+                <phases>
+                  <all />
+                </phases>
+              </target>
+            </targets>
+          </type>
+        </attribute>
+      </attributes>
+    </node>
+    <node name="NetRefs">
+      <sons>
+        <son name="Next">
+          <targets>
+            <target mandatory="no">
+              <node name="NetRefs" />
+              <phases>
+                <all />
+              </phases>
+            </target>
+          </targets>
+        </son>
+      </sons>
+      <attributes>
+        <attribute name="Net">
+          <type name="NodePtr">
+            <targets>
+              <target mandatory="yes">
+                <any />
+                <phases>
+                  <all />
+                </phases>
+              </target>
+            </targets>
+          </type>
+        </attribute>
+        <attribute name="Location" default="-1">
+          <type name="Integer">
+            <targets>
+              <target mandatory="no">
+                <any />
+                <phases>
+                  <all />
+                </phases>
+              </target>
+            </targets>
+          </type>
+        </attribute>
+      </attributes>
+    </node>
+    <node name="BoxDef">
+      <sons>
+        <son name="Sign">
+          <targets>
+            <target mandatory="yes">
+              <node name="BoxSign" />
+              <phases>
+                <all />
+              </phases>
+            </target>
+          </targets>
+        </son>
+        <son name="Body">
+          <targets>
+            <target mandatory="yes">
+              <node name="BoxBody" />
+              <phases>
+                <all />
+              </phases>
+            </target>
+          </targets>
+        </son>
+        <son name="Metadata">
+          <targets>
+            <target mandatory="no">
+              <node name="MetadataKeyList" />
+              <phases>
+                <all />
+              </phases>
+            </target>
+          </targets>
+        </son>
+      </sons>
+      <attributes>
+        <attribute name="Name">
+          <type name="String">
+            <targets>
+              <target mandatory="yes">
+                <any />
+                <phases>
+                  <all />
+                </phases>
+              </target>
+            </targets>
+          </type>
+        </attribute>
+        <attribute name="RealName">
+          <type name="String">
+            <targets>
+              <target mandatory="yes">
+                <any />
+                <phases>
+                  <all />
+                </phases>
+              </target>
+            </targets>
+          </type>
+        </attribute>
+        <attribute name="NTypeSig" default="NULL">
+          <type name="NTypeSigPtr">
+            <targets>
+              <target mandatory="yes">
+                <any />
+                <phases>
+                  <all />
+                </phases>
+              </target>
+            </targets>
+          </type>
+        </attribute>
+        <attribute name="WrapCode" default="NULL">
+          <type name="String">
+            <targets>
+              <target mandatory="no">
+                <any />
+                <phases>
+                  <all />
+                </phases>
+              </target>
+            </targets>
+          </type>
+        </attribute>
+      </attributes>
+      <flags>
+        <flag name="IsNotReferred" default="FALSE"/>
+      </flags>
+    </node>
+    <node name="BoxSign">
+      <sons>
+        <son name="InType">
+          <targets>
+            <target mandatory="yes">
+              <node name="BoxTypes" />
+              <phases>
+                <all />
+              </phases>
+            </target>
+          </targets>
+        </son>
+        <son name="OutTypes">
+          <targets>
+            <target mandatory="yes">
+              <node name="BoxTypes" />
+              <phases>
+                <all />
+              </phases>
+            </target>
+          </targets>
+        </son>
+      </sons>
+       <flags>
+        <flag name="Initializer" default="FALSE"/>
+      </flags>
+    </node>
+      		
+    <node name="BoxTypes">
+      <sons>
+        <son name="Entries">
+          <targets>
+            <target mandatory="no">
+              <node name="RecEntries" />
+              <phases>
+                <all />
+              </phases>
+            </target>
+          </targets>
+        </son>
+        <son name="Next">
+          <targets>
+            <target mandatory="no">
+              <node name="BoxTypes" />
+              <phases>
+                <all />
+              </phases>
+            </target>
+          </targets>
+        </son>
+      </sons>
+      <attributes />
+    </node>
+    <node name="BoxBody">
+      <sons />
+      <attributes>
+        <attribute name="LangName">
+          <type name="String">
+            <targets>
+              <target mandatory="yes">
+                <any />
+                <phases>
+                  <all />
+                </phases>
+              </target>
+            </targets>
+          </type>
+        </attribute>
+        <attribute name="Code">
+          <type name="String">
+            <targets>
+              <target mandatory="yes">
+                <any />
+                <phases>
+                  <all />
+                </phases>
+              </target>
+            </targets>
+          </type>
+        </attribute>
+      </attributes>
+    </node>
+    <node name="NetDef">
+      <sons>
+        <son name="Sign">
+          <targets>
+            <target mandatory="no">
+              <node name="TypeSigns" />
+              <phases>
+                <all />
+              </phases>
+            </target>
+          </targets>
+        </son>
+        <son name="Body">
+          <targets>
+            <target mandatory="yes">
+              <node name="NetBody" />
+              <phases>
+                <all />
+              </phases>
+            </target>
+          </targets>
+        </son>
+        <son name="Metadata">
+          <targets>
+            <target mandatory="no">
+              <node name="MetadataKeyList" />
+              <phases>
+                <all />
+              </phases>
+            </target>
+          </targets>
+        </son>
+      </sons>
+      <attributes>
+        <attribute name="Name">
+          <type name="String">
+            <targets>
+              <target mandatory="yes">
+                <any />
+                <phases>
+                  <all />
+                </phases>
+              </target>
+            </targets>
+          </type>
+        </attribute>
+        <attribute name="PkgName">
+          <type name="String">
+            <targets>
+              <target mandatory="yes">
+                <any />
+                <phases>
+                  <all />
+                </phases>
+              </target>
+            </targets>
+          </type>
+        </attribute>
+        <attribute name="External">
+          <type name="Bool">
+            <targets>
+              <target mandatory="yes">
+                <any />
+                <phases>
+                  <all />
+                </phases>
+              </target>
+            </targets>
+          </type>
+        </attribute>
+	      <attribute name="NoShields" default="FALSE">
+          <type name="Bool">
+            <targets>
+              <target mandatory="no">
+                <any />
+                <phases>
+                  <all />
+                </phases>
+              </target>
+            </targets>
+          </type>
+        </attribute>
+        <attribute name="Signed">
+          <type name="Bool">
+            <targets>
+              <target mandatory="yes">
+                <any />
+                <phases>
+                  <all />
+                </phases>
+              </target>
+            </targets>
+          </type>
+        </attribute>
+        <attribute name="NTypeSig" default="NULL">
+          <type name="NTypeSigPtr">
+            <targets>
+              <target mandatory="yes">
+                <any />
+                <phases>
+                  <all />
+                </phases>
+              </target>
+            </targets>
+          </type>
+        </attribute>
+      </attributes>
+      <flags>
+        <flag name="IsNotReferred" default="FALSE" />
+        <flag name="TopLevel" default="FALSE" />
+        <flag name="Initializer" default="FALSE" />
+      </flags>
+    </node>
+    <node name="Sync">
+      <sons>
+        <son name="MainPattern">
+          <targets>
+            <target mandatory="yes">
+              <node name="GuardPatterns" />
+              <phases>
+                <all />
+              </phases>
+            </target>
+          </targets>
+        </son>
+        <son name="AuxPatterns">
+          <targets>
+            <target mandatory="yes">
+              <node name="GuardPatterns" />
+              <phases>
+                <all />
+              </phases>
+            </target>
+          </targets>
+        </son>
+      </sons>
+      <attributes>
+        <attribute name="Location" default="-1">
+          <type name="Integer">
+            <targets>
+              <target mandatory="no">
+                <any />
+                <phases>
+                  <all />
+                </phases>
+              </target>
+            </targets>
+          </type>
+        </attribute>
+     </attributes>
+    </node>
+    <node name="TypeMap">
+      <sons>
+        <son name="InType">
+          <targets>
+            <target mandatory="yes">
+              <node name="Types" />
+              <phases>
+                <all />
+              </phases>
+            </target>
+          </targets>
+        </son>
+        <son name="OutType">
+          <targets>
+            <target mandatory="yes">
+              <node name="Types" />
+              <phases>
+                <all />
+              </phases>
+            </target>
+          </targets>
+        </son>
+      </sons>
+      <attributes>
+        <attribute name="OutTypeToInfer">
+          <type name="Bool">
+            <targets>
+              <target mandatory="yes">
+                <any />
+                <phases>
+                  <all />
+                </phases>
+              </target>
+            </targets>
+          </type>
+        </attribute>
+      </attributes>
+      <flags>
+      	<flag name="Initializer" default="FALSE"/>
+      </flags>
+    </node>
+    <node name="TypeSigDef">
+      <sons>
+        <son name="TypeSign">
+          <targets>
+            <target mandatory="yes">
+              <node name="TypeSigns" />
+              <phases>
+                <all />
+              </phases>
+            </target>
+          </targets>
+        </son>
+     </sons>
+     <attributes>
+      <attribute name="Name">
+          <type name="String">
+            <targets>
+              <target mandatory="yes">
+                <any />
+                <phases>
+                  <all />
+                </phases>
+              </target>
+            </targets>
+          </type>
+        </attribute>
+     </attributes>
+     <flags>
+       <flag name="IsNotReferred" default="FALSE"/>
+     </flags>
+    </node>
+    <node name="TypeSigns">
+      <sons>
+        <son name="TypeSig">
+          <targets>
+            <target mandatory="yes">
+              <set name="TypeSig" />
+              <phases>
+                <all />
+              </phases>
+            </target>
+          </targets>
+        </son>
+        <son name="Next">
+          <targets>
+            <target mandatory="no">
+              <node name="TypeSigns" />
+              <phases>
+                <all />
+              </phases>
+            </target>
+          </targets>
+        </son>
+      </sons>
+      <attributes>
+     </attributes>
+    </node>
+    <node name="TypeRef">
+      <sons />
+      <attributes>
+        <attribute name="Type">
+          <type name="NodePtr">
+            <targets>
+              <target mandatory="yes">
+                <any />
+                <phases>
+                  <all />
+                </phases>
+              </target>
+            </targets>
+          </type>
+        </attribute>
+      </attributes>
+    </node>
+    <node name="TypeSigRef">
+      <sons />
+      <attributes>
+        <attribute name="TypeSig">
+          <type name="NodePtr">
+            <targets>
+              <target mandatory="yes">
+                <any />
+                <phases>
+                  <all />
+                </phases>
+              </target>
+            </targets>
+          </type>
+        </attribute>
+      </attributes>
+    </node>
+    <node name="RecType">
+      <sons>
+        <son name="Entries">
+          <targets>
+            <target mandatory="no">
+              <node name="RecEntries" />
+              <phases>
+                <all />
+              </phases>
+            </target>
+          </targets>
+        </son>
+      </sons>
+      <attributes />
+    </node>
+    <node name="RecEntries">
+      <sons>
+        <son name="Field">
+          <targets>
+            <target mandatory="yes">
+              <node name="FieldRef" />
+              <phases>
+                <all />
+              </phases>
+            </target>
+          </targets>
+        </son>
+        <son name="STag">
+          <targets>
+            <target mandatory="yes">
+              <node name="STagRef" />
+              <phases>
+                <all />
+              </phases>
+            </target>
+          </targets>
+        </son>
+        <son name="BTag">
+          <targets>
+            <target mandatory="yes">
+              <node name="BTagRef" />
+              <phases>
+                <all />
+              </phases>
+            </target>
+          </targets>
+        </son>
+        <son name="Next">
+          <targets>
+            <target mandatory="yes">
+              <node name="RecEntries" />
+              <phases>
+                <all />
+              </phases>
+            </target>
+          </targets>
+        </son>
+      </sons>
+      <attributes>
+        <attribute name="Qualifier" default="LQUA_none">
+          <type name="LblQual">
+            <targets>
+              <target mandatory="yes">
+                <any />
+                <phases>
+                  <all />
+                </phases>
+              </target>
+            </targets>
+          </type>
+        </attribute>
+      </attributes>
+    </node>
+    <node name="Fields">
+      <sons>
+        <son name="Next">
+          <targets>
+            <target mandatory="no">
+              <node name="Fields" />
+              <phases>
+                <all />
+              </phases>
+            </target>
+          </targets>
+        </son>
+      </sons>
+      <attributes>
+        <attribute name="Name">
+          <type name="String">
+            <targets>
+              <target mandatory="yes">
+                <any />
+                <phases>
+                  <all />
+                </phases>
+              </target>
+            </targets>
+          </type>
+        </attribute>
+        <attribute name="PkgName">
+          <type name="String">
+            <targets>
+              <target mandatory="yes">
+                <any />
+                <phases>
+                  <all />
+                </phases>
+              </target>
+            </targets>
+          </type>
+        </attribute>
+        <attribute name="Pkg">
+          <type name="NodePtr">
+            <targets>
+              <target mandatory="yes">
+                <any />
+                <phases>
+                  <all />
+                </phases>
+              </target>
+            </targets>
+          </type>
+        </attribute>
+      </attributes>
+    </node>
+    <node name="FieldRef">
+      <sons />
+      <attributes>
+        <attribute name="Field">
+          <type name="NodePtr">
+            <targets>
+              <target mandatory="yes">
+                <any />
+                <phases>
+                  <all />
+                </phases>
+              </target>
+            </targets>
+          </type>
+        </attribute>
+        <attribute name="Name">
+          <type name="String">
+            <targets>
+              <target mandatory="yes">
+                <any />
+                <phases>
+                  <all />
+                </phases>
+              </target>
+            </targets>
+          </type>
+        </attribute>
+      </attributes>
+    </node>
+    <node name="STags">
+      <sons>
+        <son name="Next">
+          <targets>
+            <target mandatory="no">
+              <node name="STags" />
+              <phases>
+                <all />
+              </phases>
+            </target>
+          </targets>
+        </son>
+      </sons>
+      <attributes>
+        <attribute name="Name">
+          <type name="String">
+            <targets>
+              <target mandatory="yes">
+                <any />
+                <phases>
+                  <all />
+                </phases>
+              </target>
+            </targets>
+          </type>
+        </attribute>
+        <attribute name="PkgName">
+          <type name="String">
+            <targets>
+              <target mandatory="yes">
+                <any />
+                <phases>
+                  <all />
+                </phases>
+              </target>
+            </targets>
+          </type>
+        </attribute>
+        <attribute name="Pkg">
+          <type name="NodePtr">
+            <targets>
+              <target mandatory="yes">
+                <any />
+                <phases>
+                  <all />
+                </phases>
+              </target>
+            </targets>
+          </type>
+        </attribute>
+      </attributes>
+    </node>
+    <node name="STagRef">
+      <sons />
+      <attributes>
+        <attribute name="STag">
+          <type name="NodePtr">
+            <targets>
+              <target mandatory="yes">
+                <any />
+                <phases>
+                  <all />
+                </phases>
+              </target>
+            </targets>
+          </type>
+        </attribute>
+        <attribute name="Name">
+          <type name="String">
+            <targets>
+              <target mandatory="yes">
+                <any />
+                <phases>
+                  <all />
+                </phases>
+              </target>
+            </targets>
+          </type>
+        </attribute>
+      </attributes>
+    </node>
+    <node name="BTags">
+      <sons>
+        <son name="Next">
+          <targets>
+            <target mandatory="no">
+              <node name="BTags" />
+              <phases>
+                <all />
+              </phases>
+            </target>
+          </targets>
+        </son>
+      </sons>
+      <attributes>
+        <attribute name="Name">
+          <type name="String">
+            <targets>
+              <target mandatory="yes">
+                <any />
+                <phases>
+                  <all />
+                </phases>
+              </target>
+            </targets>
+          </type>
+        </attribute>
+        <attribute name="PkgName">
+          <type name="String">
+            <targets>
+              <target mandatory="yes">
+                <any />
+                <phases>
+                  <all />
+                </phases>
+              </target>
+            </targets>
+          </type>
+        </attribute>
+        <attribute name="Pkg">
+          <type name="NodePtr">
+            <targets>
+              <target mandatory="yes">
+                <any />
+                <phases>
+                  <all />
+                </phases>
+              </target>
+            </targets>
+          </type>
+        </attribute>
+      </attributes>
+    </node>
+    <node name="BTagRef">
+      <sons />
+      <attributes>
+        <attribute name="BTag">
+          <type name="NodePtr">
+            <targets>
+              <target mandatory="yes">
+                <any />
+                <phases>
+                  <all />
+                </phases>
+              </target>
+            </targets>
+          </type>
+        </attribute>
+        <attribute name="Name">
+          <type name="String">
+            <targets>
+              <target mandatory="yes">
+                <any />
+                <phases>
+                  <all />
+                </phases>
+              </target>
+            </targets>
+          </type>
+        </attribute>
+      </attributes>
+    </node>
+    <node name="TypeDef">
+      <sons>
+        <son name="Type">
+          <targets>
+            <target mandatory="yes">
+              <node name="Types" />
+              <phases>
+                <all />
+              </phases>
+            </target>
+          </targets>
+        </son>
+      </sons>
+      <attributes>
+        <attribute name="Name">
+          <type name="String">
+            <targets>
+              <target mandatory="yes">
+                <any />
+                <phases>
+                  <all />
+                </phases>
+              </target>
+            </targets>
+          </type>
+        </attribute>
+      </attributes>
+      <flags>
+        <flag name="IsNotReferred" default="FALSE"/>
+      </flags>
+    </node>
+    <node name="NetBody">
+      <sons>
+        <son name="Defs">
+          <targets>
+            <target mandatory="no">
+              <node name="Defs" />
+              <phases>
+                <all />
+              </phases>
+            </target>
+          </targets>
+        </son>
+        <son name="Connect">
+          <targets>
+            <target mandatory="yes">
+              <set name="Expr" />
+              <phases>
+                <all />
+              </phases>
+            </target>
+          </targets>
+        </son>
+      </sons>
+      <attributes />
+    </node>
+    <node name="Filt">
+      <sons>
+        <son name="Pattern">
+          <targets>
+            <target mandatory="yes">
+              <node name="RecType" />
+              <phases>
+                <all />
+              </phases>
+            </target>
+          </targets>
+        </son>
+        <son name="GuardActions">
+          <targets>
+            <target mandatory="no">
+              <node name="GuardActions" />
+              <phases>
+                <all />
+              </phases>
+            </target>
+          </targets>
+        </son>
+      </sons>
+      <attributes >
+        <attribute name="Location" default="-1">
+          <type name="Integer">
+            <targets>
+              <target mandatory="no">
+                <any />
+                <phases>
+                  <all />
+                </phases>
+              </target>
+            </targets>
+          </type>
+        </attribute>
+      </attributes>
+    </node>
+    <node name="Trans">
+      <sons>
+        <son name="Left">
+          <targets>
+            <target mandatory="yes">
+              <node name="BoxTypes" />
+              <phases>
+                <all />
+              </phases>
+            </target>
+          </targets>
+        </son>
+        <son name="Right">
+          <targets>
+            <target mandatory="yes">
+              <node name="BoxTypes" />
+              <phases>
+                <all />
+              </phases>
+            </target>
+          </targets>
+        </son>
+      </sons>
+      <attributes >
+        <attribute name="Location" default="-1">
+          <type name="Integer">
+            <targets>
+              <target mandatory="no">
+                <any />
+                <phases>
+                  <all />
+                </phases>
+              </target>
+            </targets>
+          </type>
+        </attribute>
+      </attributes>
+    </node>
+    <node name="GuardActions">
+      <sons>
+        <son name="TagExpr">
+          <targets>
+            <target mandatory="no">
+              <node name="TagExpr" />
+              <phases>
+                <all />
+              </phases>
+            </target>
+          </targets>
+        </son>
+       <son name="Action">
+          <targets>
+            <target mandatory="no">
+              <node name="RecOuts" />
+              <phases>
+                <all />
+              </phases>
+            </target>
+          </targets>
+        </son>
+        <son name="Next">
+          <targets>
+            <target mandatory="no">
+              <node name="GuardActions" />
+              <phases>
+                <all />
+              </phases>
+            </target>
+          </targets>
+        </son>
+      </sons>
+      <attributes />
+    </node>
+    <node name="RecOuts">
+      <sons>
+        <son name="Fields">
+          <targets>
+            <target mandatory="no">
+              <node name="OutputFields" />
+              <phases>
+                <all />
+              </phases>
+            </target>
+          </targets>
+        </son>
+        <son name="Next">
+          <targets>
+            <target mandatory="no">
+              <node name="RecOuts" />
+              <phases>
+                <all />
+              </phases>
+            </target>
+          </targets>
+        </son>
+      </sons>
+      <attributes />
+    </node>
+    <node name="OutputFields">
+      <sons>
+      <son name="LeftField">
+          <targets>
+            <target mandatory="no">
+              <node name="FieldRef" />
+              <phases>
+                <all />
+              </phases>
+            </target>
+          </targets>
+        </son>
+        <son name="RightField">
+          <targets>
+            <target mandatory="no">
+              <node name="FieldRef" />
+              <phases>
+                <all />
+              </phases>
+            </target>
+          </targets>
+        </son>
+        <son name="STag">
+          <targets>
+            <target mandatory="yes">
+              <node name="STagRef" />
+              <phases>
+                <all />
+              </phases>
+            </target>
+          </targets>
+        </son>
+        <son name="BTag">
+          <targets>
+            <target mandatory="yes">
+              <node name="BTagRef" />
+              <phases>
+                <all />
+              </phases>
+            </target>
+          </targets>
+        </son>
+        <son name="TagExpr">
+          <targets>
+            <target mandatory="no">
+              <node name="TagExpr" />
+              <phases>
+                <all />
+              </phases>
+            </target>
+          </targets>
+        </son>
+         <son name="Next">
+          <targets>
+            <target mandatory="no">
+              <node name="OutputFields" />
+              <phases>
+                <all />
+              </phases>
+            </target>
+          </targets>
+        </son>
+      </sons>
+    </node>
+    <node name="FieldInit">
+      <sons>
+        <son name="Field">
+          <targets>
+            <target mandatory="yes">
+              <node name="FieldRef" />
+              <phases>
+                <all />
+              </phases>
+            </target>
+          </targets>
+        </son>
+        <son name="Init">
+          <targets>
+            <target mandatory="no">
+              <node name="FieldRef" />
+              <phases>
+                <all />
+              </phases>
+            </target>
+          </targets>
+        </son>
+      </sons>
+      <attributes />
+    </node>
+    <node name="TagExpr">
+      <sons>
+        <son name="STag">
+          <targets>
+            <target mandatory="yes">
+              <node name="STagRef" />
+              <phases>
+                <all />
+              </phases>
+            </target>
+          </targets>
+        </son>
+        <son name="BTag">
+          <targets>
+            <target mandatory="yes">
+              <node name="BTagRef" />
+              <phases>
+                <all />
+              </phases>
+            </target>
+          </targets>
+        </son>
+        <son name="Condition">
+          <targets>
+            <target mandatory="no">
+              <node name="TagExpr" />
+              <phases>
+                <all />
+              </phases>
+            </target>
+          </targets>
+        </son>
+        <son name="Left">
+          <targets>
+            <target mandatory="no">
+              <node name="TagExpr" />
+              <phases>
+                <all />
+              </phases>
+            </target>
+          </targets>
+        </son>
+        <son name="Right">
+          <targets>
+            <target mandatory="no">
+              <node name="TagExpr" />
+              <phases>
+                <all />
+              </phases>
+            </target>
+          </targets>
+        </son>
+      </sons>
+      <attributes>
+        <attribute name="IntegerConst">
+          <type name="Integer">
+            <targets>
+              <target mandatory="no">
+                <any />
+                <phases>
+                  <all />
+                </phases>
+              </target>
+            </targets>
+          </type>
+        </attribute>
+        <attribute name="Operator">
+          <type name="Integer">
+            <targets>
+              <target mandatory="no">
+                <any />
+                <phases>
+                  <all />
+                </phases>
+              </target>
+            </targets>
+          </type>
+        </attribute>
+      </attributes>
+    </node>
+    <node name="GuardPatterns">
+      <sons>
+        <son name="Entries">
+          <targets>
+            <target mandatory="yes">
+              <node name="RecType" />
+              <phases>
+                <all />
+              </phases>
+            </target>
+          </targets>
+        </son>
+        <son name="Condition">
+          <targets>
+            <target mandatory="no">
+              <node name="TagExpr" />
+              <phases>
+                <all />
+              </phases>
+            </target>
+          </targets>
+        </son>
+        <son name="Next">
+          <targets>
+            <target mandatory="no">
+              <node name="GuardPatterns" />
+              <phases>
+                <all />
+              </phases>
+            </target>
+          </targets>
+        </son>
+      </sons>
+      <attributes />
+    </node>
+    <node name="STagInit">
+      <sons>
+        <son name="STag">
+          <targets>
+            <target mandatory="yes">
+              <node name="STagRef" />
+              <phases>
+                <all />
+              </phases>
+            </target>
+          </targets>
+        </son>
+        <son name="Init">
+          <targets>
+            <target mandatory="no">
+              <node name="STagRef" />
+              <node name="BTagRef" />
+              <phases>
+                <all />
+              </phases>
+            </target>
+          </targets>
+        </son>
+      </sons>
+      <attributes>
+        <attribute name="Type">
+          <type name="FiltType">
+            <targets>
+              <target mandatory="yes">
+                <any />
+                <phases>
+                  <all />
+                </phases>
+              </target>
+            </targets>
+          </type>
+        </attribute>
+        <attribute name="Num">
+          <type name="Integer">
+            <targets>
+              <target mandatory="no">
+                <any />
+                <phases>
+                  <all />
+                </phases>
+              </target>
+            </targets>
+          </type>
+        </attribute>
+      </attributes>
+    </node>
+    <node name="BTagInit">
+      <sons>
+        <son name="BTag">
+          <targets>
+            <target mandatory="yes">
+              <node name="BTagRef" />
+              <phases>
+                <all />
+              </phases>
+            </target>
+          </targets>
+        </son>
+        <son name="Init">
+          <targets>
+            <target mandatory="no">
+              <node name="STagRef" />
+              <node name="BTagRef" />
+              <phases>
+                <all />
+              </phases>
+            </target>
+          </targets>
+        </son>
+      </sons>
+      <attributes>
+        <attribute name="Type">
+          <type name="FiltType">
+            <targets>
+              <target mandatory="yes">
+                <any />
+                <phases>
+                  <all />
+                </phases>
+              </target>
+            </targets>
+          </type>
+        </attribute>
+        <attribute name="Num">
+          <type name="Integer">
+            <targets>
+              <target mandatory="no">
+                <any />
+                <phases>
+                  <all />
+                </phases>
+              </target>
+            </targets>
+          </type>
+        </attribute>
+      </attributes>
+    </node>
+    <node name="Serial">
+      <sons>
+        <son name="Left">
+          <targets>
+            <target mandatory="yes">
+              <set name="Expr" />
+              <phases>
+                <all />
+              </phases>
+            </target>
+          </targets>
+        </son>
+        <son name="Right">
+          <targets>
+            <target mandatory="yes">
+              <set name="Expr" />
+              <phases>
+                <all />
+              </phases>
+            </target>
+          </targets>
+        </son>
+      </sons>
+      <attributes >
+        <attribute name="Location" default="-1">
+          <type name="Integer">
+            <targets>
+              <target mandatory="no">
+                <any />
+                <phases>
+                  <all />
+                </phases>
+              </target>
+            </targets>
+          </type>
+        </attribute>
+      </attributes>
+    </node>
+    <node name="Star">
+      <sons>
+        <son name="Left">
+          <targets>
+            <target mandatory="yes">
+              <set name="Expr" />
+              <phases>
+                <all />
+              </phases>
+            </target>
+          </targets>
+        </son>
+        <son name="Term">
+          <targets>
+            <target mandatory="yes">
+              <node name="GuardPatterns" />
+              <phases>
+                <all />
+              </phases>
+            </target>
+          </targets>
+        </son>
+      </sons>
+      <attributes >
+        <attribute name="Location" default="-1">
+          <type name="Integer">
+            <targets>
+              <target mandatory="no">
+                <any />
+                <phases>
+                  <all />
+                </phases>
+              </target>
+            </targets>
+          </type>
+        </attribute>
+      </attributes>
+      <flags>
+        <flag name="IsDeterm" default="FALSE" />
+      </flags>
+    </node>
+    <node name="Feedback">
+      <sons>
+        <son name="Left">
+          <targets>
+            <target mandatory="yes">
+              <set name="Expr" />
+              <phases>
+                <all />
+              </phases>
+            </target>
+          </targets>
+        </son>
+        <son name="Back">
+          <targets>
+            <target mandatory="yes">
+              <node name="GuardPatterns" />
+              <phases>
+                <all />
+              </phases>
+            </target>
+          </targets>
+        </son>
+      </sons>
+      <attributes >
+        <attribute name="Location" default="-1">
+          <type name="Integer">
+            <targets>
+              <target mandatory="no">
+                <any />
+                <phases>
+                  <all />
+                </phases>
+              </target>
+            </targets>
+          </type>
+        </attribute>
+      </attributes>
+    </node>
+    <node name="Choice">
+      <sons>
+        <son name="BranchList">
+          <targets>
+            <target mandatory="yes">
+              <node name="BranchList" />
+              <phases>
+                <all />
+              </phases>
+            </target>
+          </targets>
+        </son>
+      </sons>
+      <attributes >
+        <attribute name="Location" default="-1">
+          <type name="Integer">
+            <targets>
+              <target mandatory="no">
+                <any />
+                <phases>
+                  <all />
+                </phases>
+              </target>
+            </targets>
+          </type>
+        </attribute>
+      </attributes>
+      <flags>
+        <flag name="IsDeterm" default="FALSE" />
+      </flags>
+    </node>
+    <node name="BranchList">
+      <sons>
+        <son name="Attracts">
+          <targets>
+            <target mandatory="no">
+              <node name="Types" />
+              <phases>
+                <all />
+              </phases>
+            </target>
+          </targets>
+        </son>
+        <son name="Branch">
+          <targets>
+            <target mandatory="yes">
+              <set name="Expr" />
+              <phases>
+                <all />
+              </phases>
+            </target>
+          </targets>
+        </son>
+        <son name="Next">
+          <targets>
+            <target mandatory="no">
+              <node name="BranchList" />
+              <phases>
+                <all />
+              </phases>
+            </target>
+          </targets>
+        </son>
+      </sons>
+      <attributes >
+        <attribute name="Count" default="1">
+          <type name="Integer">
+            <targets>
+              <target mandatory="no">
+                <any />
+                <phases>
+                  <all />
+                </phases>
+              </target>
+            </targets>
+          </type>
+        </attribute>
+        <attribute name="Typed" default="FALSE">
+          <type name="Bool">
+            <targets>
+              <target mandatory="no">
+                <any />
+                <phases>
+                  <all />
+                </phases>
+              </target>
+            </targets>
+          </type>
+        </attribute>
+      </attributes>
+    </node>
+    <node name="Split">
+      <sons>
+        <son name="Left">
+          <targets>
+            <target mandatory="yes">
+              <set name="Expr" />
+              <phases>
+                <all />
+              </phases>
+            </target>
+          </targets>
+        </son>
+        <son name="Range">
+          <targets>
+            <target mandatory="yes">
+              <node name="Range" />
+              <phases>
+                <all />
+              </phases>
+            </target>
+          </targets>
+        </son>
+      </sons>
+      <attributes >
+        <attribute name="Location" default="-1">
+          <type name="Integer">
+            <targets>
+              <target mandatory="no">
+                <any />
+                <phases>
+                  <all />
+                </phases>
+              </target>
+            </targets>
+          </type>
+        </attribute>
+      </attributes>
+      <flags>
+        <flag name="IsDeterm" default="FALSE" />
+        <flag name="IsDistributed" default="FALSE" />
+      </flags>
+    </node>
+    <node name="Range">
+      <sons>
+        <son name="STagStart">
+          <targets>
+            <target mandatory="yes">
+              <node name="STagRef" />
+              <phases>
+                <all />
+              </phases>
+            </target>
+          </targets>
+        </son>
+        <son name="BTagStart">
+          <targets>
+            <target mandatory="yes">
+              <node name="BTagRef" />
+              <phases>
+                <all />
+              </phases>
+            </target>
+          </targets>
+        </son>
+        <son name="STagStop">
+          <targets>
+            <target mandatory="no">
+              <node name="StagRef" />
+              <phases>
+                <all />
+              </phases>
+            </target>
+          </targets>
+        </son>
+        <son name="BTagStop">
+          <targets>
+            <target mandatory="no">
+              <node name="BtagRef" />
+              <phases>
+                <all />
+              </phases>
+            </target>
+          </targets>
+        </son>
+      </sons>
+      <attributes>
+        <attribute name="StartType">
+          <type name="FiltType">
+            <targets>
+              <target mandatory="yes">
+                <any />
+                <phases>
+                  <all />
+                </phases>
+              </target>
+            </targets>
+          </type>
+        </attribute>
+        <attribute name="StopType">
+          <type name="FiltType">
+            <targets>
+              <target mandatory="yes">
+                <any />
+                <phases>
+                  <all />
+                </phases>
+              </target>
+            </targets>
+          </type>
+        </attribute>
+      </attributes>
+    </node>
+    <node name="At">
+      <sons>
+        <son name="Left">
+          <targets>
+            <target mandatory="yes">
+              <set name="Expr" />
+              <phases>
+                <all />
+              </phases>
+            </target>
+          </targets>
+        </son>
+      </sons>
+      <attributes >
+        <attribute name="Location">
+          <type name="Integer">
+            <targets>
+              <target mandatory="yes">
+                <any />
+                <phases>
+                  <all />
+                </phases>
+              </target>
+            </targets>
+          </type>
+        </attribute>
+      </attributes>
+    </node>
+    <node name="Error">
+      <sons>
+        <son name="Next">
+          <targets>
+            <target mandatory="no" >
+              <node name="Error" />
+              <phases>
+                <all />
+              </phases>
+            </target>
+          </targets>
+        </son>
+      </sons>
+      <attributes>
+        <attribute name="Message">
+          <type name="String">
+            <targets>
+              <target mandatory="yes">
+                <any />
+                <phases>
+                  <all />
+                </phases>
+              </target>
+            </targets>
+          </type>
+        </attribute>
+      </attributes>
+      <flags></flags>
+    </node>
+    <node name="LanguageInterfaces">
+      <!-- Used to keep global language interfaces related data under Module node -->
+      <sons>
+        <son name="Next">
+          <targets>
+            <target mandatory="yes">
+              <node name="LanguageInterfaces" />
+              <phases>
+                <all />
+              </phases>
+            </target>
+          </targets>
+        </son>
+      </sons>
+      <attributes>
+        <attribute name="Name">
+          <type name="String">
+            <targets>
+              <target mandatory="yes">
+                <any />
+                <phases>
+                  <all />
+                </phases>
+              </target>
+            </targets>
+          </type>
+        </attribute>
+      </attributes>
+      <flags />
+    </node>
+    <node name="MetadataDefs">
+      <!-- List of arbitrary metadata definitions -->
+      <sons>
+        <son name="Def">
+          <targets>
+            <target mandatory="yes">
+              <set name="MetadataDef" />
+              <phases>
+                <all />
+              </phases>
+            </target>
+          </targets>
+        </son>
+        <son name="Next">
+          <targets>
+            <target mandatory="yes">
+              <node name="MetadataDefs" />
+              <phases>
+                <all />
+              </phases>
+            </target>
+          </targets>
+        </son>
+      </sons>
+    </node>
+    <node name="MetadataKeyList">
+      <!-- List of metadata key-value pairs -->
+      <sons>
+        <son name="Next">
+          <targets>
+            <target mandatory="yes">
+              <node name="MetadataKeyList" />
+              <phases>
+                <all />
+              </phases>
+            </target>
+          </targets>
+        </son>
+      </sons>
+      <attributes>
+        <attribute name="Key">
+          <type name="String">
+            <targets>
+              <target mandatory="yes">
+                <any />
+                <phases>
+                  <all />
+                </phases>
+              </target>
+            </targets>
+          </type>
+        </attribute>
+        <attribute name="Value">
+          <type name="String">
+            <targets>
+              <target mandatory="yes">
+                <any />
+                <phases>
+                  <all />
+                </phases>
+              </target>
+            </targets>
+          </type>
+        </attribute>
+      </attributes>
+      <flags />
+    </node>
+    <node name="MetadataDefaultDef">
+      <sons>
+        <son name="Keys">
+          <targets>
+            <target mandatory="yes">
+              <node name="MetadataKeyList" />
+              <phases>
+                <all />
+              </phases>
+            </target>
+          </targets>
+        </son>
+      </sons>
+      <attributes >
+        <attribute name="Type">
+          <type name="MetadataType">
+            <targets>
+              <target mandatory="yes">
+                <any />
+                <phases>
+                  <all />
+                </phases>
+              </target>
+            </targets>
+          </type>
+        </attribute>
+      </attributes>
+    </node>
+    <node name="MetadataNetDef">
+      <sons>
+        <son name="Keys">
+          <!-- Keys are stored here after sorting -->
+          <targets>
+            <target mandatory="yes">
+              <node name="MetadataKeyList" />
+              <phases>
+                <all />
+              </phases>
+            </target>
+          </targets>
+        </son>
+        <son name="Childs">
+          <!-- Childs are stored here after sorting -->
+          <targets>
+            <target mandatory="yes">
+              <node name="MetadataDefs" />
+              <phases>
+                <all />
+              </phases>
+            </target>
+          </targets>
+        </son>
+        <son name="Definitions">
+          <!-- Childs and keys are read in in arbitrary order and stored here -->
+          <targets>
+            <target mandatory="yes">
+              <node name="MetadataList" />
+              <phases>
+                <all />
+              </phases>
+            </target>
+          </targets>
+        </son>
+      </sons>
+      <attributes >
+        <attribute name="Name">
+          <type name="String">
+            <targets>
+              <target mandatory="yes">
+                <any />
+                <phases>
+                  <all />
+                </phases>
+              </target>
+            </targets>
+          </type>
+        </attribute>
+      </attributes>
+    </node>
+    <node name="MetadataBoxDef">
+      <sons>
+        <son name="Keys">
+          <targets>
+            <target mandatory="yes">
+              <node name="MetadataKeyList" />
+              <phases>
+                <all />
+              </phases>
+            </target>
+          </targets>
+        </son>
+      </sons>
+      <attributes >
+        <attribute name="Name">
+          <type name="String">
+            <targets>
+              <target mandatory="yes">
+                <any />
+                <phases>
+                  <all />
+                </phases>
+              </target>
+            </targets>
+          </type>
+        </attribute>
+      </attributes>
+    </node>
+    <node name="MetadataList">
+      <!-- List of arbitrary metadata elements -->
+      <sons>
+        <son name="Entry">
+          <targets>
+            <target mandatory="yes">
+              <set name="Metadata" />
+              <phases>
+                <all />
+              </phases>
+            </target>
+          </targets>
+        </son>
+        <son name="Next">
+          <targets>
+            <target mandatory="yes">
+              <node name="MetadataList" />
+              <phases>
+                <all />
+              </phases>
+            </target>
+          </targets>
+        </son>
+      </sons>
+    </node>
+  </syntaxtree>
+</definition>

@@ -1,0 +1,280 @@
+/*
+ * $Id: phase.mac 3371 2012-02-13 15:32:29Z mvn $
+ */
+
+
+
+/*
+ * PH_initial and PH_final are required to be the first and last
+ * compiler phase, respectively!
+ */
+
+
+
+#ifndef PHASEelement
+#define PHASEelement(it_element)
+#endif
+
+#ifndef PHASEtext
+#define PHASEtext(it_text)
+#endif
+
+#ifndef PHASE
+#define PHASE( it_element, it_text)  \
+  PHASEelement(it_element)           \
+  PHASEtext(it_text)
+#endif
+
+
+#ifndef SUBPHASEelement
+#define SUBPHASEelement(it_element)
+#endif
+
+#ifndef SUBPHASEspec
+#define SUBPHASEspec(it_spec)
+#endif
+
+#ifndef SUBPHASEtext
+#define SUBPHASEtext(it_text)
+#endif
+
+#ifndef SUBPHASEfun
+#define SUBPHASEfun(it_fun)
+#endif
+
+#ifndef SUBPHASE
+#define SUBPHASE( it_element, it_spec, it_text, it_fun)  \
+  SUBPHASEelement(it_element)                            \
+  SUBPHASEspec(it_spec)                                  \
+  SUBPHASEtext(it_text)                                  \
+  SUBPHASEfun(it_fun)
+#endif
+
+#ifndef ENDPHASE
+#define ENDPHASE(it_element)
+#endif
+
+
+
+/******************************************************************************/
+
+PHASE( initial, "Setting up compiler infrastructure")
+
+SUBPHASE( initial, "initial",
+          "Setting up compiler infrastructure",
+          PHdummy)
+
+ENDPHASE( initial)
+
+
+/******************************************************************************/
+
+PHASE( parse, "Loading S-Net program")
+
+SUBPHASE( cpp, "cpp",
+          "Running C preprocessor",
+          CPPdoPreprocRun)
+
+SUBPHASE( sp, "sp",
+          "Parsing input file",
+          SPdoScanParse)
+
+SUBPHASE( mpreproc, "mpreproc",
+          "Preprocessing metadata",
+          MDdoPreproc)
+
+SUBPHASE( mredist, "mredist",
+          "Moving metadata to inner scopes",
+          MDdoDistribute)
+
+SUBPHASE( munpack, "munpack",
+          "Unpacking metadata to nets and boxes",
+          MDdoUnpack)
+
+SUBPHASE( mprogdef, "mprogdef",
+          "Propagating default metadata values",
+          MDdoPropagate)
+
+SUBPHASE( mremdup, "mremdup",
+          "Removing duplicate metadata keys",
+          MDdoRemove)
+
+SUBPHASE( mcollect, "mcollect",
+          "Collecting global information about metadata",
+          MDdoCollect)
+
+SUBPHASE( merrcode, "merrcode",
+          "Propageting user-defined error codes",
+          MERRCODEdoPropagate)
+
+
+ENDPHASE( parse)
+
+
+/******************************************************************************/
+
+PHASE( preproc, "Preprocessing S-Net specification")
+
+SUBPHASE( dcr, "dcr",
+          "Removing dead code",
+          PREPdoRemove)
+
+SUBPHASE( tcheck, "tcheck",
+          "Checking types",
+          PREPdoTypeCheck)
+
+SUBPHASE( boxex, "boxex",
+          "Extracting box code",
+          PREPdoExtract)
+
+SUBPHASE( tres, "tres",
+          "Resolving type definitions",
+          PREPdoTypeRes)
+
+SUBPHASE( mod, "mod",
+          "Loading modules",
+          PREPdoLoad)
+
+ENDPHASE( preproc)
+
+
+/******************************************************************************/
+
+PHASE( norm, "Normalising topology")
+
+SUBPHASE( topoflat, "topoflat",
+          "Flattening topology expressions",
+          FLATdoFlat)
+
+ENDPHASE( norm)
+
+
+/******************************************************************************/
+
+PHASE( typesys, "Running type system tasks")
+
+SUBPHASE( sip, "sip",
+          "Performing type inference on primitive constructs",
+          TSIPdoSigInf)
+
+SUBPHASE( ri, "ri",
+          "Performing route inference",
+          TRIdoRouteInf)
+
+SUBPHASE( muli, "muli",
+          "Inferring record multiplicity",
+          PHidentity)
+
+ENDPHASE( typesys)
+
+
+
+/******************************************************************************/
+
+PHASE( opt, "Running optimisations")
+
+SUBPHASE( spec, "spec",
+          "Specialising networks",
+          PHidentity)
+
+SUBPHASE( mchoice, "mchoice",
+          "Introducing multi-ary choice combinators",
+          PHidentity)
+
+SUBPHASE( odcr, "odcr",
+          "Removing dead code",
+          PHidentity)
+
+ENDPHASE( opt)
+
+
+
+/******************************************************************************/
+
+PHASE( postproc, "Postprocessing S-Net specification")
+
+SUBPHASE( tclean, "tclean",
+          "Cleaning types",
+          PPdoTypeClean)
+
+SUBPHASE( ptran, "ptran",
+          "Introducing package translations",
+          PPdoTranslation)
+
+SUBPHASE( disam, "disam",
+          "Disambiguating records",
+          PHidentity)
+
+SUBPHASE( ploc, "ploc",
+          "Locating networks",
+          PPdoLocate)
+
+SUBPHASE( netren, "netren",
+          "Renaming networks",
+          PPdoRename)
+
+SUBPHASE( netflat, "netflat",
+          "Flattening nested network definitions",
+          PPdoFlat)
+
+ENDPHASE( postproc)
+
+
+
+/******************************************************************************/
+
+PHASE( codegen, "Generating C code")
+
+
+SUBPHASE( cgenwrap, "cgenwrap",
+          "Generating box wrappers",
+    CGENWRAPdoCode)
+
+SUBPHASE( codegen, "codegen",
+          "Generating C code",
+          CODEdoCode)
+
+ENDPHASE( codegen)
+
+
+
+/******************************************************************************/
+
+PHASE( invokecc, "Invoking C compiler")
+
+SUBPHASE( invokecc, "invokecc",
+          "Invoking C compiler",
+          CCdoCompile)
+
+ENDPHASE( invokecc)
+
+
+/******************************************************************************/
+
+PHASE( final, "Irregular compiler phase")
+
+SUBPHASE( final, "final",
+          "Irregular compiler subphase",
+          PHdummy)
+
+ENDPHASE( final)
+
+
+/******************************************************************************/
+
+
+#undef PHASE
+
+#undef PHASEelement
+#undef PHASEtext
+
+#undef SUBPHASE
+
+#undef SUBPHASEelement
+#undef SUBPHASEspec
+#undef SUBPHASEtext
+#undef SUBPHASEfun
+
+#undef ENDPHASE
+
+

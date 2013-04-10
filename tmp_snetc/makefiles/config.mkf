@@ -1,0 +1,37 @@
+OS           = darwin11.4.0
+ARCH         = i686
+
+CC           := gcc 
+CCPROD       := gcc
+
+CCFLAGS      := -Wall -std=c99 -g 
+
+CCDEPS_FLAGS := -M  $(CCFLAGS)
+CCPROD_FLAGS := -std=c99 
+CFLAGS       :=  -g -O2 -DSHOW_MALLOC -DCLEANMEM
+
+CPROD_FLAGS  := -DDBUG_OFF -DPRODUCTION  
+SOFLAGS      := -dynamiclib
+XSLTENGINE   := xsltproc
+
+MAKE_NORM    := $(MAKE) CC="$(CC)" CCFLAGS="$(CCFLAGS)" CFLAGS="$(CFLAGS)"
+MAKE_PROD    := $(MAKE) CC="$(CCPROD)" CCFLAGS="$(CCPROD_FLAGS)" CFLAGS="$(CPROD_FLAGS)"
+MAKE_CLEAN   := $(MAKE) TARGET="clean" clean
+MAKEFLAGS    += --no-print-directory
+
+RM           := rm -f
+ECHO         := echo
+LEX          := flex -n
+YACC         := bison -y -dv
+TOUCH        := touch
+
+INCS         := -I/usr/local/include/snet
+LIBS         :=   $(LDFLAGS)
+LIBS_LEX     := -lfl
+RPATH        := -Wl,-rpath,/usr/local/lib/snet
+EFLIBS       := -lefence
+
+YYFLAGS      :=  -DYYLMAX=8192
+
+
+

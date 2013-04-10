@@ -1,0 +1,37 @@
+OS           = @OS@
+ARCH         = @ARCH@
+
+CC           := @CC@ 
+CCPROD       := @CC@
+
+CCFLAGS      := @MKCCFLAGS@ @OSFLAGS@
+
+CCDEPS_FLAGS := @DEPSFLAG@ @CPPFLAGS@ $(CCFLAGS)
+CCPROD_FLAGS := @PDCCFLAGS@ @OSFLAGS@
+CFLAGS       := @CPPFLAGS@ @CFLAGS@ -DSHOW_MALLOC -DCLEANMEM
+
+CPROD_FLAGS  := -DDBUG_OFF -DPRODUCTION  
+SOFLAGS      := @SOFLAGS@
+XSLTENGINE   := @XSLT@
+
+MAKE_NORM    := $(MAKE) CC="$(CC)" CCFLAGS="$(CCFLAGS)" CFLAGS="$(CFLAGS)"
+MAKE_PROD    := $(MAKE) CC="$(CCPROD)" CCFLAGS="$(CCPROD_FLAGS)" CFLAGS="$(CPROD_FLAGS)"
+MAKE_CLEAN   := $(MAKE) TARGET="clean" clean
+MAKEFLAGS    += --no-print-directory
+
+RM           := rm -f
+ECHO         := echo
+LEX          := @LEX@ -n
+YACC         := @YACC@ -dv
+TOUCH        := touch
+
+INCS         := @SNET_RT_INCLUDES@
+LIBS         := @LDFLAGS@ @LIBS@ $(LDFLAGS)
+LIBS_LEX     := @LEXLIB@
+RPATH        := @SNET_RT_RPATH@
+EFLIBS       := -lefence
+
+YYFLAGS      := @EXTRA_YYFLAGS@ -DYYLMAX=8192
+
+
+

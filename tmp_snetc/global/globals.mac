@@ -1,0 +1,311 @@
+/*
+ * $Id: globals.mac 3371 2012-02-13 15:32:29Z mvn $
+ */
+
+/*
+ * File : globals.mac
+ *
+ * This file should contain the definitions of all global variables
+ * used in the implementation of the sac2c compiler which are not restricted
+ * to the use within one particular file. 
+ *
+ * However, the usage of global variables should be as limited as possible
+ * since a functional programming style is preferred in the SAC project. The
+ * major application of global variables therefore is the storage of such
+ * global information as determined by the command line arguments of a sac2c
+ * compiler call.
+ *
+ */
+
+
+#ifndef GLOBALtype
+#define GLOBALtype( type)
+#endif
+
+#ifndef GLOBALname
+#define GLOBALname( name)
+#endif
+
+#ifndef GLOBALinit
+#define GLOBALinit( init)
+#endif
+
+
+#define GLOBAL( type, name, init) GLOBALtype(type) GLOBALname(name) GLOBALinit(init)
+
+
+
+/*
+ * Memory allocation
+ */
+
+#ifdef SHOW_MALLOC
+GLOBAL( unsigned int, current_allocated_mem, 0)
+GLOBAL( unsigned int, max_allocated_mem, 0)
+#endif
+
+
+/*
+ * Syntax tree root
+ */
+
+GLOBAL( node *, syntax_tree, NULL)
+
+
+/*
+ *  Version control
+ */
+
+GLOBAL( const char *, version_id, "v0.1")
+GLOBAL( const char *, target_platform, OS "_" ARCH)
+
+
+/*
+ *  File handling
+ */
+
+GLOBAL( char *, filename, NULL)
+GLOBAL( char *, filebase, NULL)
+GLOBAL( char *, pathname, NULL)
+
+
+
+/*
+ * Command line arguments
+ */
+
+GLOBAL( int, argc, 0)
+GLOBAL( char **, argv, NULL)
+
+/*
+ * C preprocessor options
+ */
+GLOBAL( char *, cpp_call, NULL)
+
+
+/*
+ * C include directories
+ */
+
+GLOBAL( char *, include_dirs, STRcpy("-I${SNET_INCLUDES}"));
+
+/*
+ * C library directories
+ */
+
+GLOBAL( char *, clib_dirs, STRcpy("-L. -L${SNET_LIBS}"));
+
+/*
+ * C libraries
+ */
+
+GLOBAL( char *, clibs, STRcpy("-lsnetutil"));
+
+/*
+ * Library search path options
+ */
+
+GLOBAL( char *, rpath, NULL);
+
+/*
+ * C compiler options
+ */
+
+GLOBAL( bool, cc_debug, FALSE)
+    /* Enable/disable inclusion of debug code into object files. */
+
+#ifdef PRODUCTION
+GLOBAL( int,  cc_optimize, 3)
+#else  /* PRODUCTION */
+GLOBAL( int,  cc_optimize, 0)
+#endif /* PRODUCTION */
+    /* C compiler level of optimization */
+
+
+/*
+ * Compile time options
+ */
+
+GLOBAL( bool, treecheck,  FALSE)
+    /*
+     * check syntaxtree for consistency with xml specification
+     */
+
+#ifdef SHOW_MALLOC
+GLOBAL( bool, memcheck,  global.memcheck)
+    /*
+     * check syntaxtree for memoryproblems with xml specification
+     * 
+     * CAUTION:
+     * memcheck requires initiatilisation BEFORE anything else.
+     * Therefore, we look for -d memcheck in presetup options
+     * and set global.memcheck there accordingly. We re-initialise
+     * global.memcheck to its existing value here for purely technical
+     * reasons.
+     */
+#endif /* SHOW_MALLOC */
+
+GLOBAL( bool, use_efence,  FALSE)
+    /*
+     * link executable with ElectricFence (Malloc Debugger) 
+     */
+
+
+GLOBAL( bool, show_syscall,  FALSE)
+    /*
+     * Show system calls during compilation. 
+     */
+
+GLOBAL( compiler_phase_t, break_after, PH_final)
+    /*
+     * Stop compilation process after given phase. 
+     */
+
+GLOBAL( char *, break_specifier, "")
+    /*
+     * Additional break specifier to allow breaking within a particular
+     * compiler phase at any position. 
+     */
+
+/*
+ *  Compile time information system parameters
+ */
+
+GLOBAL( int, errors_cnt, 0)          
+    /*
+     * Counter for number of errors
+     */
+
+GLOBAL( int, warnings_cnt, 0)        
+    /*
+     * Counter for number of warnings
+     */
+
+#ifdef PRODUCTION
+GLOBAL( int, verbose_level, 1) 
+#else  /* PRODUCTION */
+GLOBAL( int, verbose_level, 3)
+#endif /* PRODUCTION */
+    /*
+     * Verbosity of compile time output
+     */
+
+GLOBAL( compiler_phase_t, compiler_phase, PH_initial)
+    /*
+     * Counter for compilation phases
+     */ 
+
+GLOBAL( compiler_subphase_t, compiler_subphase, SUBPH_initial)
+    /*
+     * Counter for compilation phases
+     */ 
+
+GLOBAL( int, message_indent, 0)
+    /*
+     * used for formatting compile time output 
+     */ 
+
+GLOBAL( int, last_indent, 0) 
+    /*
+     * used for formatting compile time output 
+     */ 
+
+GLOBAL( int, current_line_length, 80)
+    /*
+     * used for formatting compile time output 
+     */
+
+GLOBAL( char *, nodefile, NULL)
+GLOBAL( int, nodeline, 0)
+GLOBAL( int, nodecol, 0)  
+    /*
+     * Current location
+     */
+
+GLOBAL( bool, cleanup,  TRUE)
+    /*
+     * Don't remove temporary files and directory when compiling
+     * module/class implementations.
+     */
+
+/* Metadata filenames.
+ *
+ * These might not be need, but are nice to have for error reporting purposes. 
+ */
+
+GLOBAL( int, mdfc, 0)
+GLOBAL( char **, mdfv, NULL)
+
+/*
+ * DBUG options
+ */
+
+GLOBAL( char *, output_file,  NULL)
+    /*
+     * File for linker output (NULL == a.out)
+     */
+
+GLOBAL( bool, is_deployed,  TRUE)
+    /*
+     * used to for deployment of the SNet
+     */
+
+GLOBAL( bool, formatted_errors,  TRUE)
+    /*	
+     * If TRUE if error reports are printed in human-readable form
+     */
+
+/*
+ * Library selection options
+ */
+
+GLOBAL( char *, compiler, "eval `cat ${SNET_LIBS}/compile_cmd`")
+    /*
+     * The compiler to use for the produced binary.
+     */
+
+GLOBAL( char *, linker, "eval `cat ${SNET_LIBS}/link_cmd`")
+    /*
+     * The compiler to use for the produced binary.
+     */
+
+GLOBAL( bool, is_static, FALSE)
+    /*
+     * If TRUE, produces a static binary.
+     */
+
+GLOBAL( bool, enable_dist_snet, TRUE)
+    /*
+     * If FALSE, treat all placement combinators as placements on node 0 and
+     * split-by-location as normal split.
+     */
+
+GLOBAL( snet_runtime_t, runtime_lib, stream)
+    /*
+     * The runtime library to link against.
+     */
+
+GLOBAL( snet_distrib_t, distribution_lib,  nodist)
+    /*	
+     * The distribution library to link against.
+     */
+
+GLOBAL( snet_threading_t, threading_lib,  pthread)
+    /*	
+     * The threading library to link against, defaults to pthread.
+     */
+
+GLOBAL( compiler_phase_t, my_dbug_from, PH_initial)
+GLOBAL( compiler_phase_t, my_dbug_to, PH_final)
+GLOBAL( int, my_dbug, 0)
+GLOBAL( int, my_dbug_active, 0)
+GLOBAL( char *, my_dbug_str, NULL)
+
+
+#undef GLOBALtype
+#undef GLOBALname
+#undef GLOBALinit
+#undef GLOBAL
+
+
+
